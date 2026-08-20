@@ -55,49 +55,64 @@ async function searchAccount(cfg, account) {
   const { browser, context } = await launchContext(state);
   try {
     const page = await context.newPage();
-    const contactsUrl = `${cfg.portalUrl}/partner/contacts`;
-    console.log('[search] Navigating to:', contactsUrl);
-    await page.goto(contactsUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    console.log('[search] Navigating to Home first...');
+    await page.goto(`${cfg.portalUrl}/home?lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
 
     const currentUrl = page.url();
-    console.log('[search] Current URL after navigation:', currentUrl);
+    console.log('[search] Home URL:', currentUrl);
 
     if (currentUrl.includes('/auth/login')) {
-      console.log('[search] Redirected to login, refreshing session...');
+      console.log('[search] Session expired, re-logging in...');
       await browser.close();
       await login(cfg);
       const newState = await loadStorageState(cfg.sessionKey);
       const retry = await launchContext(newState);
       try {
         const retryPage = await retry.context.newPage();
-        await retryPage.goto(contactsUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await retryPage.waitForTimeout(3000);
-        return await executeSearch(retryPage, account);
+        return await executeSearch(retryPage, cfg, account);
       } finally {
         await retry.browser.close();
       }
     }
 
-    return await executeSearch(page, account);
+    return await executeSearch(page, cfg, account);
   } finally {
     await browser.close();
   }
 }
 
-async function executeSearch(page, account) {
-  console.log('[search] Finding Trading Accounts tab...');
-  const tabSelector = 'text="Trading Accounts", .el-tabs__item:has-text("Trading Accounts"), [role="tab"]:has-text("Trading Accounts")';
-  await page.waitForSelector(tabSelector, { timeout: 15000 });
-  await page.click(tabSelector);
-  await page.waitForTimeout(2000);
+async function executeSearch(page, cfg, account) {
+  // Try navigating or clicking sidebar menu
+  console.log('[search] Navigating to Partner Contacts...');
+  await page.goto(`${cfg.portalUrl}/partner/contacts?lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(3000);
+
+  // Log visible text/links on page to diagnose
+  const pageText = await page.evaluate(() => document.body.innerText.slice(0, 500));
+  console.log('[search] Page snippet:', pageText.replace(/\n+/g, ' '));
+
+  // Check for Trading Accounts tab or sub-item
+  const tabSelector = 'text=/Trading Accounts/i, .el-tabs__item:has-text("Trading Accounts"), [role="tab"]:has-text("Trading Accounts"), a:has-text("Trading Accounts"), li:has-text("Trading Accounts")';
+  const foundTab = await page.$(tabSelector);
+  if (foundTab) {
+    console.log('[search] Clicking Trading Accounts tab...');
+    await foundTab.click();
+    await page.waitForTimeout(2000);
+  } else {
+    console.log('[search] Tab selector not found, checking if table is already present...');
+  }
 
   console.log('[search] Typing account into search box:', account);
-  const inputSelector = 'input[placeholder*="Trading Account Id" i], input[placeholder*="Account" i], input.el-input__inner';
-  await page.waitForSelector(inputSelector, { timeout: 15000 });
-  await page.fill(inputSelector, account);
-  await page.keyboard.press('Enter');
-  await page.waitForTimeout(3000);
+  const inputSelector = 'input[placeholder*="Trading Account" i], input[placeholder*="Account" i], input.el-input__inner';
+  const inputEl = await page.$(inputSelector);
+  if (inputEl) {
+    await inputEl.fill(account);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(3000);
+  } else {
+    console.warn('[search] Search input not found, reading table directly...');
+  }
 
   console.log('[search] Scraping table rows...');
   const rowsCells = await page.$$eval('table tbody tr', (trs) =>
