@@ -37,18 +37,27 @@ async function loadStorageState(key) {
   }
 }
 
-// Logs in with email+password (normal login has NO 2FA per product owner;
-// 2FA only triggers on password change / withdrawal). Saves session.
 async function login(cfg) {
   const { browser, context } = await launchContext();
   try {
     const page = await context.newPage();
-    await page.goto(`${cfg.portalUrl}/login`, { waitUntil: 'networkidle' });
-    // SELECTORS: verify against the live login page during Task 6 smoke test.
-    await page.fill('input[type="email"], input[name="email"]', cfg.loginEmail);
-    await page.fill('input[type="password"], input[name="password"]', cfg.loginPassword);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/partner|\/dashboard/, { timeout: 30000 });
+    const loginUrl = `${cfg.portalUrl}/auth/login?lang=en-us`;
+    await page.goto(loginUrl, { waitUntil: 'networkidle' });
+
+    // Wait for the login form input (support various selector attributes)
+    const emailSelector = 'input[type="email"], input[name="email"], input[name="username"], input[placeholder*="Email" i], input[placeholder*="Username" i], input[placeholder*="Account" i]';
+    await page.waitForSelector(emailSelector, { timeout: 15000 });
+    await page.fill(emailSelector, cfg.loginEmail);
+
+    const passSelector = 'input[type="password"], input[name="password"], input[placeholder*="Password" i]';
+    await page.fill(passSelector, cfg.loginPassword);
+
+    const submitSelector = 'button[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login")';
+    await page.click(submitSelector);
+
+    // Wait for navigation past login
+    await page.waitForURL((url) => !url.pathname.includes('/auth/login'), { timeout: 30000 });
+    await page.waitForTimeout(3000);
     await saveStorageState(context, cfg.sessionKey);
   } finally {
     await browser.close();
