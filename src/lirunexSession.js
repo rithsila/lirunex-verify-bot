@@ -42,23 +42,33 @@ async function login(cfg) {
   try {
     const page = await context.newPage();
     const loginUrl = `${cfg.portalUrl}/auth/login?lang=en-us`;
-    await page.goto(loginUrl, { waitUntil: 'networkidle' });
+    console.log('[login] Navigating to:', loginUrl);
+    await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Wait for the login form input (support various selector attributes)
-    const emailSelector = 'input[type="email"], input[name="email"], input[name="username"], input[placeholder*="Email" i], input[placeholder*="Username" i], input[placeholder*="Account" i]';
+    console.log('[login] Current page URL:', page.url());
+    console.log('[login] Page title:', await page.title());
+
+    const emailSelector = 'input[type="email"], input[name="email"], input[name="username"], input[placeholder*="Email" i], input[placeholder*="Username" i], input[placeholder*="Account" i], input.el-input__inner';
     await page.waitForSelector(emailSelector, { timeout: 15000 });
+    console.log('[login] Found email input, filling credentials...');
     await page.fill(emailSelector, cfg.loginEmail);
 
     const passSelector = 'input[type="password"], input[name="password"], input[placeholder*="Password" i]';
     await page.fill(passSelector, cfg.loginPassword);
 
-    const submitSelector = 'button[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login")';
+    const submitSelector = 'button[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login"), .el-button--primary';
+    console.log('[login] Clicking submit...');
     await page.click(submitSelector);
 
-    // Wait for navigation past login
-    await page.waitForURL((url) => !url.pathname.includes('/auth/login'), { timeout: 30000 });
-    await page.waitForTimeout(3000);
+    console.log('[login] Waiting for navigation past login...');
+    await page.waitForTimeout(5000);
+    console.log('[login] After click URL:', page.url());
+
     await saveStorageState(context, cfg.sessionKey);
+    console.log('[login] Session saved successfully');
+  } catch (err) {
+    console.error('[login.failed]', err.message);
+    throw err;
   } finally {
     await browser.close();
   }
