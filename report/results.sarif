@@ -1,0 +1,656 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "84446aa14057161a8a02fab3ab3947a3a19c4ede_20260820T123905Z"
+      },
+      "properties": {
+        "codexSecuritySchemaVersion": "1.0",
+        "codexSecurityTargetKind": "git_worktree"
+      },
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/functions/_shared/lirunex-client.ts"
+                },
+                "region": {
+                  "endLine": 67,
+                  "startLine": 63
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/functions/claim-referral/index.ts"
+                },
+                "region": {
+                  "endLine": 483,
+                  "startLine": 475
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/tests/fixtures/trading-accounts-1row.html"
+                },
+                "region": {
+                  "endLine": 31,
+                  "startLine": 30
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/functions/claim-referral/index.ts"
+                },
+                "region": {
+                  "endLine": 706,
+                  "startLine": 686
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/migrations/058_lirunex_verification.sql"
+                },
+                "region": {
+                  "endLine": 21,
+                  "startLine": 19
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Cent-account deposits bypass the configured currency threshold\n\nThe Edge gate receives both expected and observed currency but ignores them, multiplying USC values as if they were USD and allowing deposits below the intended threshold to qualify.\n\nSeverity: medium\n\nCategory: Authorization bypass monetary unit confusion\n\nWeaknesses: CWE-20\n\nRemediation:\nRequire the observed currency to match the configured currency and normalize supported units explicitly: USD values to cents and USC values as already-denominated US cents; reject missing or unsupported currencies.\n\nRemediation tests:\n- Reject a USC row when the gate expects USD.\n- Normalize USC 200.00 to 200 USD cents and reject a 10000-cent minimum.\n- Accept USD 200.00 for a 10000-cent minimum.\n- Reject unsupported or missing currency when a deposit gate is enabled.\n\nPreventive controls:\n- Use currency-aware monetary value types.\n- Constrain configured deposit currencies to supported values."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:c5d889149d92f1778fd047769ad94023e3f49d30901cda1c9778dcb595b8d02b",
+            "primaryLocationLineHash": "f0606d64c1011026:1"
+          },
+          "properties": {
+            "candidateId": "candidate-cae250aebafec495",
+            "category": "Authorization bypass / monetary unit confusion",
+            "confidence": "high",
+            "findingId": "csf_a83bd9f89e2e5e5c2fc13c0e",
+            "occurrenceId": "occ_06b662c8faf9a14b5cb5586f",
+            "severity": "medium"
+          },
+          "ruleId": "authorization-bypass.deposit-currency",
+          "ruleIndex": 0
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/lirunexSearch.js"
+                },
+                "region": {
+                  "endLine": 152,
+                  "startLine": 150
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/lirunexSearch.js"
+                },
+                "region": {
+                  "endLine": 148,
+                  "startLine": 146
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/tests/fixtures/trading-accounts-1row.html"
+                },
+                "region": {
+                  "endLine": 37,
+                  "startLine": 23
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Raw broker contact and financial data is written to service logs\n\nA successful search serializes the first full portal row before projection, including client contact and financial columns not needed by the verification response.\n\nSeverity: low\n\nCategory: Sensitive data in logs\n\nWeaknesses: CWE-532\n\nRemediation:\nRemove the raw row sample log and retain only non-sensitive operational counts or masked identifiers.\n\nRemediation tests:\n- Exercise a successful search with a fixture containing contact data and assert logs do not contain any cell value.\n\nPreventive controls:\n- Project broker rows before logging.\n- Use structured logging with a field allowlist."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:fa973ee8fd81c566f1efc29275c58ba1c87a405aafe7f3036b825644a6aa0fd3",
+            "primaryLocationLineHash": "ee82c78f9889e7e9:1"
+          },
+          "properties": {
+            "candidateId": "candidate-3339141d879784f5",
+            "category": "Sensitive data in logs",
+            "confidence": "high",
+            "findingId": "csf_0b66991e9895dbf1393e9f5e",
+            "occurrenceId": "occ_4e064227b80d9fc1f8a4b839",
+            "severity": "low"
+          },
+          "ruleId": "sensitive-data-exposure.raw-row-logging",
+          "ruleIndex": 5
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/server.js"
+                },
+                "region": {
+                  "endLine": 20,
+                  "startLine": 14
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/PROXMOX_LXC_GUIDE.md"
+                },
+                "region": {
+                  "endLine": 127,
+                  "startLine": 94
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:preauth_log_sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/server.js"
+                },
+                "region": {
+                  "endLine": 18,
+                  "startLine": 14
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unauthenticated account input can forge service log entries\n\nThe public bot logs req.body.account before HMAC and format validation, so multiline JSON input can create forged log lines and repeatable log-processing amplification.\n\nSeverity: low\n\nCategory: Log injection\n\nWeaknesses: CWE-117\n\nRemediation:\nVerify HMAC and parse the numeric account before logging; log only a masked validated identifier with structured fields.\n\nRemediation tests:\n- Send invalid-HMAC multiline input and assert the raw account is never logged.\n- Send a valid request and assert only a masked numeric account is logged.\n\nPreventive controls:\n- Authenticate before observability sinks.\n- Use structured logging and escape control characters."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:e9cc48f6c13a981d501d21d6255296c22fac6bf4acd582c8ed24dbcb31430f98",
+            "primaryLocationLineHash": "894a3e534e6d72fd:1"
+          },
+          "properties": {
+            "candidateId": "candidate-3b13467bfeb0ee11",
+            "category": "Log injection",
+            "confidence": "high",
+            "findingId": "csf_1fb581de96115df19458d023",
+            "occurrenceId": "occ_5ee68b88d15e2a49b04e2df7",
+            "severity": "low"
+          },
+          "ruleId": "log-injection.preauth-account",
+          "ruleIndex": 3
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/lirunexSearch.js"
+                },
+                "region": {
+                  "endLine": 37,
+                  "startLine": 37
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/tests/fixtures/trading-accounts-1row.html"
+                },
+                "region": {
+                  "endLine": 37,
+                  "startLine": 37
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/functions/_shared/lirunex-client.ts"
+                },
+                "region": {
+                  "endLine": 61,
+                  "startLine": 59
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/functions/claim-referral/index.ts"
+                },
+                "region": {
+                  "endLine": 706,
+                  "startLine": 686
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Inactive broker accounts are marked active before license eligibility\n\nThe scraper discards the real Status column and writes Active for every row, so an inactive account can satisfy the downstream active-account gate and receive a one-year referral license.\n\nSeverity: medium\n\nCategory: Authorization bypass business eligibility\n\nWeaknesses: CWE-20, CWE-807\n\nRemediation:\nParse the actual Status column and fail closed when it is missing or not Active.\n\nRemediation tests:\n- Parse an Inactive fixture row and assert status remains Inactive.\n- Pass the parsed row to decideValidity and assert rejection.\n\nPreventive controls:\n- Bind column indexes to explicit table headers or schema tests.\n- Never synthesize security-decision fields."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:447b6828406d92e2d8e50dd72b52d214df20428e3c4bd89129434beadd367d2c",
+            "primaryLocationLineHash": "39563c438bf9f75f:1"
+          },
+          "properties": {
+            "candidateId": "candidate-c84079300f2eac03",
+            "category": "Authorization bypass / business eligibility",
+            "confidence": "high",
+            "findingId": "csf_8627e31b6e553ba10571f5b4",
+            "occurrenceId": "occ_8e86b91d96a33446ac018b5f",
+            "severity": "medium"
+          },
+          "ruleId": "authorization-bypass.referral-status",
+          "ruleIndex": 1
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/Dockerfile"
+                },
+                "region": {
+                  "endLine": 5,
+                  "startLine": 5
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/.env.example"
+                },
+                "region": {
+                  "endLine": 10,
+                  "startLine": 3
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/.gitignore"
+                },
+                "region": {
+                  "endLine": 3,
+                  "startLine": 1
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/railway.json"
+                },
+                "region": {
+                  "endLine": 5,
+                  "startLine": 3
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/config.js"
+                },
+                "region": {
+                  "endLine": 23,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A local secret-bearing .env can be baked into the production image\n\nThe service uses a project-local .env, but no .dockerignore exists and COPY . . stores the whole build context in the final image and its layers.\n\nSeverity: medium\n\nCategory: Secret exposure in container image\n\nWeaknesses: CWE-200, CWE-538\n\nRemediation:\nAdd a strict .dockerignore and replace COPY . . with allowlisted source copies so .env, .git, data, tests, and node_modules cannot enter the final image.\n\nRemediation tests:\n- Build a context containing a sentinel .env and assert it is absent from the image.\n- Inspect the final image file list for only required runtime files.\n\nPreventive controls:\n- Use runtime secret injection.\n- Scan built images for secret filenames before publishing."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:9d2d92f9c3d2333d0a1393017981c60055375c2c92e49f4a6d2b3e6fb89033e8",
+            "primaryLocationLineHash": "777a3049ca30a63f:1"
+          },
+          "properties": {
+            "candidateId": "candidate-ae71ca0fd90b79c7",
+            "category": "Secret exposure in container image",
+            "confidence": "high",
+            "findingId": "csf_0393898d1de2e5d5ed58f9aa",
+            "occurrenceId": "occ_8ece42cb6b6ea1473c3a548c",
+            "severity": "medium"
+          },
+          "ruleId": "secret-exposure.container-build-context",
+          "ruleIndex": 4
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/server.js"
+                },
+                "region": {
+                  "endLine": 29,
+                  "startLine": 14
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/functions/claim-referral/index.ts"
+                },
+                "region": {
+                  "endLine": 281,
+                  "startLine": 274
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "supabase/functions/_shared/lirunex-client.ts"
+                },
+                "region": {
+                  "endLine": 98,
+                  "startLine": 94
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/browser.js"
+                },
+                "region": {
+                  "endLine": 21,
+                  "startLine": 4
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/lirunexSearch.js"
+                },
+                "region": {
+                  "endLine": 94,
+                  "startLine": 57
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:resource_root"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lirunex-verify-bot/src/server.js"
+                },
+                "region": {
+                  "endLine": 27,
+                  "startLine": 25
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Concurrent claims can fan out into unbounded Chromium processes\n\nEvery HMAC-valid verification starts a separate Chromium process with no service-wide permit limit, while the documented deployment has only 1 GB RAM and upstream limits do not bound global concurrency.\n\nSeverity: medium\n\nCategory: Uncontrolled resource consumption\n\nWeaknesses: CWE-400, CWE-770\n\nRemediation:\nAdd a process-wide admission gate that permits only a small bounded number of browser searches and returns a retryable 503 when all permits are occupied.\n\nRemediation tests:\n- Acquire the single permit and assert a concurrent acquisition is rejected.\n- Release the permit and assert the next acquisition succeeds.\n- Exercise POST /verify and assert busy responses do not invoke searchAccount.\n\nPreventive controls:\n- Track active browser count and rejected busy requests.\n- Use a production load test sized to the deployment memory limit."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:4d39ac1e3a512047a16cf3e5a84943dd0954a8060cd082ee06fdb4aad13668b3",
+            "primaryLocationLineHash": "894a3e534e6d72fd:1"
+          },
+          "properties": {
+            "candidateId": "candidate-180d92072083b3ca",
+            "category": "Uncontrolled resource consumption",
+            "confidence": "high",
+            "findingId": "csf_c6e7ab1274ed75d6dc321d97",
+            "occurrenceId": "occ_c9caead5c63d0cc1b5b0f05d",
+            "severity": "medium"
+          },
+          "ruleId": "denial-of-service.browser-concurrency",
+          "ruleIndex": 2
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Authorization bypass: Deposit currency. Categories: Authorization bypass monetary unit confusion. Weaknesses: CWE-20."
+              },
+              "help": {
+                "markdown": "Authorization bypass: Deposit currency. Categories: Authorization bypass monetary unit confusion. Weaknesses: CWE-20.\n\n## Remediation\n\nRequire the observed currency to match the configured currency and normalize supported units explicitly: USD values to cents and USC values as already-denominated US cents; reject missing or unsupported currencies.",
+                "text": "Authorization bypass: Deposit currency. Categories: Authorization bypass monetary unit confusion. Weaknesses: CWE-20.\n\nRemediation:\n\nRequire the observed currency to match the configured currency and normalize supported units explicitly: USD values to cents and USC values as already-denominated US cents; reject missing or unsupported currencies."
+              },
+              "id": "authorization-bypass.deposit-currency",
+              "name": "Authorization bypass: Deposit currency",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "Authorization bypass / monetary unit confusion",
+                  "external/cwe/cwe-020",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Authorization bypass: Deposit currency"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Authorization bypass: Referral status. Categories: Authorization bypass business eligibility. Weaknesses: CWE-20, CWE-807."
+              },
+              "help": {
+                "markdown": "Authorization bypass: Referral status. Categories: Authorization bypass business eligibility. Weaknesses: CWE-20, CWE-807.\n\n## Remediation\n\nParse the actual Status column and fail closed when it is missing or not Active.",
+                "text": "Authorization bypass: Referral status. Categories: Authorization bypass business eligibility. Weaknesses: CWE-20, CWE-807.\n\nRemediation:\n\nParse the actual Status column and fail closed when it is missing or not Active."
+              },
+              "id": "authorization-bypass.referral-status",
+              "name": "Authorization bypass: Referral status",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "Authorization bypass / business eligibility",
+                  "external/cwe/cwe-020",
+                  "external/cwe/cwe-807",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Authorization bypass: Referral status"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Denial of service: Browser concurrency. Categories: Uncontrolled resource consumption. Weaknesses: CWE-400, CWE-770."
+              },
+              "help": {
+                "markdown": "Denial of service: Browser concurrency. Categories: Uncontrolled resource consumption. Weaknesses: CWE-400, CWE-770.\n\n## Remediation\n\nAdd a process-wide admission gate that permits only a small bounded number of browser searches and returns a retryable 503 when all permits are occupied.",
+                "text": "Denial of service: Browser concurrency. Categories: Uncontrolled resource consumption. Weaknesses: CWE-400, CWE-770.\n\nRemediation:\n\nAdd a process-wide admission gate that permits only a small bounded number of browser searches and returns a retryable 503 when all permits are occupied."
+              },
+              "id": "denial-of-service.browser-concurrency",
+              "name": "Denial of service: Browser concurrency",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "Uncontrolled resource consumption",
+                  "external/cwe/cwe-400",
+                  "external/cwe/cwe-770",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Denial of service: Browser concurrency"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Log injection: Preauth account. Categories: Log injection. Weaknesses: CWE-117."
+              },
+              "help": {
+                "markdown": "Log injection: Preauth account. Categories: Log injection. Weaknesses: CWE-117.\n\n## Remediation\n\nVerify HMAC and parse the numeric account before logging; log only a masked validated identifier with structured fields.",
+                "text": "Log injection: Preauth account. Categories: Log injection. Weaknesses: CWE-117.\n\nRemediation:\n\nVerify HMAC and parse the numeric account before logging; log only a masked validated identifier with structured fields."
+              },
+              "id": "log-injection.preauth-account",
+              "name": "Log injection: Preauth account",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "Log injection",
+                  "external/cwe/cwe-117",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Log injection: Preauth account"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Secret exposure: Container build context. Categories: Secret exposure in container image. Weaknesses: CWE-200, CWE-538."
+              },
+              "help": {
+                "markdown": "Secret exposure: Container build context. Categories: Secret exposure in container image. Weaknesses: CWE-200, CWE-538.\n\n## Remediation\n\nAdd a strict .dockerignore and replace COPY . . with allowlisted source copies so .env, .git, data, tests, and node_modules cannot enter the final image.",
+                "text": "Secret exposure: Container build context. Categories: Secret exposure in container image. Weaknesses: CWE-200, CWE-538.\n\nRemediation:\n\nAdd a strict .dockerignore and replace COPY . . with allowlisted source copies so .env, .git, data, tests, and node_modules cannot enter the final image."
+              },
+              "id": "secret-exposure.container-build-context",
+              "name": "Secret exposure: Container build context",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "Secret exposure in container image",
+                  "external/cwe/cwe-200",
+                  "external/cwe/cwe-538",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Secret exposure: Container build context"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Sensitive data exposure: Raw row logging. Categories: Sensitive data in logs. Weaknesses: CWE-532."
+              },
+              "help": {
+                "markdown": "Sensitive data exposure: Raw row logging. Categories: Sensitive data in logs. Weaknesses: CWE-532.\n\n## Remediation\n\nRemove the raw row sample log and retain only non-sensitive operational counts or masked identifiers.",
+                "text": "Sensitive data exposure: Raw row logging. Categories: Sensitive data in logs. Weaknesses: CWE-532.\n\nRemediation:\n\nRemove the raw row sample log and retain only non-sensitive operational counts or masked identifiers."
+              },
+              "id": "sensitive-data-exposure.raw-row-logging",
+              "name": "Sensitive data exposure: Raw row logging",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "Sensitive data in logs",
+                  "external/cwe/cwe-532",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Sensitive data exposure: Raw row logging"
+              }
+            }
+          ],
+          "version": "0.1.21"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

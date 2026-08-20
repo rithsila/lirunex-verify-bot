@@ -1,0 +1,6 @@
+Command: deno eval importing decideValidity with a USC 200.00 row and a USD 10000-cent gate.
+Exit: 0
+Observed output:
+{"valid":true,"accountType":"Advance Cent Plus MT5"}
+
+Conclusion: the currency mismatch and cent-account units did not affect qualification.

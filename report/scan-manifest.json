@@ -1,0 +1,132 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "a962e3ff3e67fc4d282ca163797947461395e522bf186d145a15512a3d85d0b0"
+      },
+      {
+        "mediaType": "application/json",
+        "path": "coverage.json",
+        "sha256": "ccb3adda0877434c6d011e50caac264ced2896838cc21c01d056732130664889"
+      },
+      {
+        "mediaType": "application/octet-stream",
+        "path": "artifacts/02_discovery/candidate_ledger.jsonl",
+        "sha256": "e37a883126699e56adb461fe09d3abad6759d0638ed4492b8be2e84805b976f2"
+      },
+      {
+        "mediaType": "application/octet-stream",
+        "path": "artifacts/02_discovery/work_ledger.jsonl",
+        "sha256": "86f85f46e643a58763007be9ebd03589bc6de9b33c2a22e93f6fd84fc2915502"
+      },
+      {
+        "mediaType": "application/octet-stream",
+        "path": "artifacts/05_findings/currency-bypass/validation_artifacts/runtime_probe.txt",
+        "sha256": "eff181febacfa8630173a437e4adb88631e7ac5e14888cc2e47373380813daca"
+      },
+      {
+        "mediaType": "application/octet-stream",
+        "path": "artifacts/05_findings/secret-in-image/validation_artifacts/context_metadata.txt",
+        "sha256": "ebb26a2c875b358b002db8cdf227761849b0e303831f65cebc0ab3e9d6c255e6"
+      },
+      {
+        "mediaType": "application/octet-stream",
+        "path": "artifacts/05_findings/status-bypass/validation_artifacts/runtime_probe.txt",
+        "sha256": "a37fc1c504257888491931b386a2dfc5fd4ca59cf50b72395c0b7f1aca5cd06e"
+      }
+    ],
+    "completedAt": "2026-08-20T12:56:02Z",
+    "coverageRef": "coverage.json",
+    "findingsRef": "findings.json",
+    "id": "84446aa14057161a8a02fab3ab3947a3a19c4ede_20260820T123905Z",
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.21"
+    },
+    "scope": {
+      "artifactsReviewed": [
+        "25-file deterministic inventory",
+        "parent Git patch against 84446aa14057161a8a02fab3ab3947a3a19c4ede",
+        "nested bot revision 01db18e3430271cf71347271600684fd6e447f0b",
+        "Deno decision tests",
+        "Node parser and HMAC tests",
+        "deployment and migration configuration"
+      ],
+      "context": "The supplied AGENTS.md was used unchanged as the authoritative repository threat model body.",
+      "excludePaths": [
+        "lirunex-verify-bot/.env",
+        "lirunex-verify-bot/.git/",
+        "lirunex-verify-bot/node_modules/"
+      ],
+      "includePaths": [
+        ".codex/config.toml",
+        "AGENTS.md",
+        "deno.lock",
+        "supabase/functions/_shared/lirunex-client.test.ts",
+        "supabase/functions/_shared/lirunex-client.ts",
+        "supabase/functions/claim-referral/index.ts",
+        "supabase/migrations/058_lirunex_verification.sql",
+        "lirunex-verify-bot/"
+      ],
+      "limitations": [
+        "No live Lirunex portal, production Supabase database, Railway service, image registry, or production-equivalent load test was used.",
+        "The real .env file contents were intentionally not read; only existence, size, and mode metadata were inspected.",
+        "TAC advisory status could not be captured, so protected hosted output visibility was not verified."
+      ],
+      "runtimeStatus": "Baseline targeted suites passed: 7 Deno tests and 5 Node tests. Focused status and currency probes reproduced the vulnerable behavior.",
+      "summary": "Security diff review of the parent working-tree implementation plus every tracked file at the nested Lirunex bot revision 01db18e3430271cf71347271600684fd6e447f0b.",
+      "validationMode": "Targeted runtime probes where feasible, with complete static source-control-sink tracing for deployment and resource findings."
+    },
+    "sealedAt": "2026-08-20T12:56:02Z",
+    "startedAt": "2026-08-20T12:39:05Z",
+    "status": "completed",
+    "target": {
+      "displayName": "rithsila/SafetyScore Lirunex verification snapshot",
+      "kind": "git_worktree",
+      "remote": "https://github.com/rithsila/SafetyScore.git",
+      "revision": "84446aa14057161a8a02fab3ab3947a3a19c4ede",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:931a734e5489da7b55858529462d96e2aa78590ffe3540e4ba5c5fa1e8ea5e9b",
+      "targetId": "target_sha256_902b55b1303973ae0a5e0f1c39b8dbeb771b19ec676201cad73481447477a83a"
+    },
+    "threatModel": {
+      "assets": [
+        "Referral-license issuance integrity and one-account binding",
+        "Supabase service-role write authority",
+        "Lirunex portal credentials, HMAC secret, and encrypted browser session key",
+        "Broker customer contact and financial data",
+        "Verification-service availability"
+      ],
+      "assumptions": [
+        "The Lirunex partner table and checked-in fixture reflect the live column order, including Currency and Status.",
+        "The HMAC secret is shared only by the Edge Function and bot.",
+        "Referral programs and their gate configuration are controlled by trusted operators.",
+        "Production communication uses HTTPS as documented."
+      ],
+      "attackerCapabilities": [
+        "An authenticated user can choose program and MT5 account identifiers and issue concurrent claims.",
+        "An unauthenticated remote actor can send JSON to the public bot but cannot forge HMAC without the shared secret.",
+        "Broker-controlled DOM content can influence parsed account rows.",
+        "An image, container, or log reader may gain access after a separate deployment-platform boundary is crossed."
+      ],
+      "securityObjectives": [
+        "Issue a referral license only for the exact qualifying account, referrer, status, currency, and deposit.",
+        "Keep service-role writes behind authenticated and fail-closed broker verification.",
+        "Keep broker credentials and cryptographic secrets out of images and logs.",
+        "Bound expensive browser work across all callers.",
+        "Minimize broker customer data copied into operational logs."
+      ],
+      "summary": "EA Safety Score issues commercial and referral licenses through privileged Supabase paths. The Lirunex flow adds a public authenticated claim boundary, a signed Edge-to-bot boundary, a browser-to-broker boundary, and deployment/logging boundaries.",
+      "trustBoundaries": [
+        "Authenticated user to claim-referral Edge Function",
+        "Supabase Edge Function to public Lirunex bot over HMAC-authenticated HTTPS",
+        "Lirunex bot browser to the external partner portal",
+        "Local source/build context to deployable container image",
+        "Broker portal data to service logs"
+      ]
+    }
+  },
+  "schemaVersion": "1.0"
+}

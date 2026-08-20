@@ -1,0 +1,129 @@
+{
+  "completeness": "complete",
+  "deferred": [],
+  "documentType": "codex-security.coverage",
+  "excludePaths": [
+    "lirunex-verify-bot/.env",
+    "lirunex-verify-bot/.git/",
+    "lirunex-verify-bot/node_modules/"
+  ],
+  "explicitExclusions": [
+    {
+      "pattern": "lirunex-verify-bot/.env contents",
+      "reason": "Secret values were intentionally not accessed; only file existence, size, and mode metadata were inspected."
+    },
+    {
+      "pattern": "lirunex-verify-bot/node_modules/**",
+      "reason": "Vendored install output was excluded; package.json and the integrity-pinned lockfile were reviewed instead."
+    },
+    {
+      "pattern": "live production services and data",
+      "reason": "No production Lirunex portal, Supabase database, Railway runtime, registry, or real customer data was accessed."
+    }
+  ],
+  "includePaths": [
+    ".codex/config.toml",
+    "AGENTS.md",
+    "deno.lock",
+    "supabase/functions/_shared/lirunex-client.test.ts",
+    "supabase/functions/_shared/lirunex-client.ts",
+    "supabase/functions/claim-referral/index.ts",
+    "supabase/migrations/058_lirunex_verification.sql",
+    "lirunex-verify-bot/"
+  ],
+  "inventoryStrategy": "diff",
+  "mode": "working_tree",
+  "openQuestions": [],
+  "scanId": "84446aa14057161a8a02fab3ab3947a3a19c4ede_20260820T123905Z",
+  "schemaVersion": "1.0",
+  "surfaces": [
+    {
+      "disposition": "reported",
+      "id": "surface_broker_eligibility_status",
+      "label": "Broker status eligibility",
+      "notes": "The scraper overwrites the portal Status column with Active before the license gate.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl",
+        "artifacts/02_discovery/candidate_ledger.jsonl",
+        "artifacts/05_findings/status-bypass/validation_artifacts/runtime_probe.txt"
+      ],
+      "riskArea": "Entitlement authorization"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_broker_currency_deposit",
+      "label": "Deposit currency and units",
+      "notes": "USC and configured USD values are compared without currency or unit normalization.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl",
+        "artifacts/02_discovery/candidate_ledger.jsonl",
+        "artifacts/05_findings/currency-bypass/validation_artifacts/runtime_probe.txt"
+      ],
+      "riskArea": "Entitlement authorization"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_browser_resource_control",
+      "label": "Browser concurrency and resource control",
+      "notes": "Every accepted request immediately launches Chromium with no global in-flight limit.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl",
+        "artifacts/02_discovery/candidate_ledger.jsonl"
+      ],
+      "riskArea": "Availability"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_container_secret_boundary",
+      "label": "Container build secret boundary",
+      "notes": "The full local context, including a normal .env, can be copied into the final image.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl",
+        "artifacts/02_discovery/candidate_ledger.jsonl",
+        "artifacts/05_findings/secret-in-image/validation_artifacts/context_metadata.txt"
+      ],
+      "riskArea": "Secret exposure"
+    },
+    {
+      "disposition": "reported",
+      "id": "surface_operational_logging",
+      "label": "Request and broker-data logging",
+      "notes": "Unauthenticated multiline input reaches logs, and successful searches log a complete raw broker row.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl",
+        "artifacts/02_discovery/candidate_ledger.jsonl"
+      ],
+      "riskArea": "Audit integrity and sensitive data"
+    },
+    {
+      "disposition": "rejected",
+      "id": "surface_hmac_session_crypto",
+      "label": "HMAC and session cryptography",
+      "notes": "Timing-safe HMAC verification and AES-256-GCM are effective. Replay and session-file concerns lacked a realistic added privilege or impact path.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl"
+      ],
+      "riskArea": "Authentication and secret storage"
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "surface_supabase_auth_rls",
+      "label": "Supabase authentication, RLS, and service-role ordering",
+      "notes": "User tokens, body-user binding, rate limits, runtime controls, and active-program checks precede privileged writes; the migration adds no new RLS exposure.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl"
+      ],
+      "riskArea": "Authorization and tenant isolation"
+    },
+    {
+      "disposition": "rejected",
+      "id": "surface_dependencies_deployment_guidance",
+      "label": "Dependencies and deployment guidance",
+      "notes": "Integrity-pinned lockfiles were clean. Mutable installation guidance and root-runtime concerns require operator or upstream compromise and did not survive the reportability policy.",
+      "receiptRefs": [
+        "artifacts/02_discovery/work_ledger.jsonl"
+      ],
+      "riskArea": "Supply chain and least privilege"
+    }
+  ]
+}

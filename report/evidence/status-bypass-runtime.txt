@@ -1,0 +1,6 @@
+Command: node -e with a 15-cell fixture-style row whose actual status cell is Inactive, passed to rowsFromCells.
+Exit: 0
+Observed output:
+{"account":"569307908","accountType":"Advance Cent Plus MT5","referrerName":"Sila Rith","country":"","currency":"USD","depositRaw":"200.00","status":"Active"}
+
+Conclusion: the parser replaced the broker-provided Inactive status with Active.

@@ -1,0 +1,6 @@
+Command: stat -f 'env_size=%z env_mode=%Lp' .env
+Exit: 0
+Observed output:
+env_size=349 env_mode=644
+
+The .env contents were not read. Source inspection confirmed there is no .dockerignore and Dockerfile uses COPY . .

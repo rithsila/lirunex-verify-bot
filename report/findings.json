@@ -1,0 +1,967 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "blindspots": [
+          "Production retention behavior for inactive rows"
+        ],
+        "controls": [
+          "Supabase authentication",
+          "Rate limiting",
+          "Exact account and referrer matching",
+          "Immediate account binding"
+        ],
+        "dataflow": {
+          "evidenceRefs": [
+            "status_root"
+          ],
+          "outcome": "Ineligible inactive account receives a referral entitlement",
+          "sink": "Service-role licenses insert",
+          "source": "Broker Status cell selected by an authenticated account claim",
+          "summary": "Broker status is replaced before the authorization decision.",
+          "transformations": [
+            "DOM row to cell array",
+            "rowsFromCells overwrites status",
+            "decideValidity trusts overwritten status"
+          ]
+        },
+        "impact": {
+          "level": "medium",
+          "rationale": "Commercial entitlement integrity is bypassed for one exact account."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "Once an inactive row is visible, exploitation is a normal authenticated claim."
+        },
+        "reachability": {
+          "attacker": "Remote authenticated SafetyScore user",
+          "entrypoint": "claim-referral Edge Function",
+          "evidenceRefs": [
+            "status_root"
+          ],
+          "outcome": "One-year license bound to the submitted account",
+          "preconditions": [
+            "Active Lirunex referral program",
+            "Inactive account remains visible",
+            "Exact account, referrer, and deposit checks otherwise pass"
+          ],
+          "summary": "The path needs no broker or service secret and crosses from user input to privileged license issuance."
+        },
+        "steps": [
+          "Submit the exact inactive MT5 account to the authenticated claim route.",
+          "The signed bot lookup returns the matching portal row.",
+          "The scraper replaces its real status with Active.",
+          "The Edge decision accepts the row and inserts an active bound referral license."
+        ],
+        "summary": "An authenticated user submits an inactive account that remains in the partner table; the parser rewrites its status and the service-role flow provisions a license."
+      },
+      "codeEvidence": [
+        {
+          "code": "        status: 'Active',",
+          "endLine": 37,
+          "explanation": "Every parsed row receives Active regardless of the broker-provided status cell.",
+          "id": "status_root",
+          "label": "Fabricated status",
+          "language": "javascript",
+          "path": "lirunex-verify-bot/src/lirunexSearch.js",
+          "role": "root_control",
+          "startLine": 37
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "A targeted runtime probe converted an Inactive status cell to Active, and the checked fixture proves a real Status column exists."
+      },
+      "extensions": {
+        "candidateId": "candidate-c84079300f2eac03"
+      },
+      "findingId": "csf_8627e31b6e553ba10571f5b4",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:447b6828406d92e2d8e50dd72b52d214df20428e3c4bd89129434beadd367d2c"
+      },
+      "identity": {
+        "anchor": "broker-status-overwritten-before-eligibility",
+        "instance": "lirunex-status-column"
+      },
+      "locations": [
+        {
+          "endLine": 37,
+          "path": "lirunex-verify-bot/src/lirunexSearch.js",
+          "role": "root_control",
+          "startLine": 37
+        },
+        {
+          "endLine": 37,
+          "path": "lirunex-verify-bot/tests/fixtures/trading-accounts-1row.html",
+          "role": "source",
+          "startLine": 37
+        },
+        {
+          "endLine": 61,
+          "path": "supabase/functions/_shared/lirunex-client.ts",
+          "role": "sink",
+          "startLine": 59
+        },
+        {
+          "endLine": 706,
+          "path": "supabase/functions/claim-referral/index.ts",
+          "role": "sink",
+          "startLine": 686
+        }
+      ],
+      "occurrenceId": "occ_8e86b91d96a33446ac018b5f",
+      "preventiveControls": [
+        "Bind column indexes to explicit table headers or schema tests.",
+        "Never synthesize security-decision fields."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Parse the actual Status column and fail closed when it is missing or not Active.",
+      "remediationTests": [
+        "Parse an Inactive fixture row and assert status remains Inactive.",
+        "Pass the parsed row to decideValidity and assert rejection."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "status_root"
+        ],
+        "summary": "The eligibility invariant requires the status used by decideValidity to come from the same broker row as the account. rowsFromCells instead manufactures Active and makes the later status check circular."
+      },
+      "ruleId": "authorization-bypass.referral-status",
+      "severity": {
+        "changeConditions": "Severity would increase if inactive accounts are commonly retained and the resulting keys can be monetized across additional accounts; it would decrease if the production portal proves inactive rows can never appear.",
+        "level": "medium",
+        "rationale": "A remote authenticated user can cross the commercial entitlement boundary without secrets if an inactive account remains visible and meets the other checks. The impact is limited to a referral license bound to that exact account."
+      },
+      "summary": "The scraper discards the real Status column and writes Active for every row, so an inactive account can satisfy the downstream active-account gate and receive a one-year referral license.",
+      "taxonomy": {
+        "category": "Authorization bypass / business eligibility",
+        "cwe": [
+          "CWE-20",
+          "CWE-807"
+        ]
+      },
+      "title": "Inactive broker accounts are marked active before license eligibility",
+      "validation": {
+        "assertions": [
+          "The fixture contains an explicit Status column.",
+          "An Inactive input row is returned as Active.",
+          "The downstream gate accepts Active and reaches privileged license creation."
+        ],
+        "disposition": "reportable",
+        "evidence": "The runtime probe returned a row whose status was Active after the input status cell was Inactive.",
+        "evidenceRefs": [
+          "status_root"
+        ],
+        "limitations": [
+          "No production inactive account was queried."
+        ],
+        "method": "Targeted Node runtime probe plus downstream static trace"
+      }
+    },
+    {
+      "attackPath": {
+        "blindspots": [
+          "Live Lirunex USC display semantics"
+        ],
+        "controls": [
+          "Authentication and rate limiting",
+          "Exact account and referrer match",
+          "Active-status check",
+          "Immediate account binding"
+        ],
+        "dataflow": {
+          "evidenceRefs": [
+            "currency_root"
+          ],
+          "outcome": "Below-threshold account receives a referral entitlement",
+          "sink": "Service-role license creation",
+          "source": "Broker Currency and Deposit cells",
+          "summary": "A monetary unit crosses the authorization boundary without normalization.",
+          "transformations": [
+            "DOM row projection",
+            "depositToCents universal USD conversion",
+            "minimum comparison without currency check"
+          ]
+        },
+        "impact": {
+          "level": "medium",
+          "rationale": "The configured commercial eligibility threshold is bypassed."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "The checked fixture demonstrates the cent-account currency and the path is a normal authenticated claim."
+        },
+        "reachability": {
+          "attacker": "Remote authenticated SafetyScore user",
+          "entrypoint": "claim-referral Edge Function",
+          "evidenceRefs": [
+            "currency_root"
+          ],
+          "outcome": "One-year license bound to the selected account",
+          "preconditions": [
+            "Exact qualifying Lirunex account",
+            "Currency differs from the configured threshold units"
+          ],
+          "summary": "No secret compromise is required."
+        },
+        "steps": [
+          "Submit an exact USC account under the expected referrer.",
+          "The bot returns currency USC and depositRaw.",
+          "The gate ignores currency and multiplies the raw value by 100.",
+          "The comparison passes and the service-role flow inserts a license."
+        ],
+        "summary": "An authenticated user selects a genuine USC account with a numerically large but economically small deposit; the Edge gate treats it as USD and provisions a license."
+      },
+      "codeEvidence": [
+        {
+          "code": "  if (gate.minDepositCents !== null) {\n    const cents = depositToCents(match.depositRaw);\n    if (cents === null) return { valid: false, reason: \"deposit_unparseable\" };\n    if (cents < gate.minDepositCents) return { valid: false, reason: \"deposit_too_low\" };\n  }",
+          "endLine": 67,
+          "explanation": "The comparison does not read match.currency or gate.depositCurrency.",
+          "id": "currency_root",
+          "label": "Currency-free deposit comparison",
+          "language": "typescript",
+          "path": "supabase/functions/_shared/lirunex-client.ts",
+          "role": "root_control",
+          "startLine": 63
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "A targeted Deno probe accepted USC 200.00 against a USD 10000-cent threshold, and the checked fixture uses USC while the migration requires currency normalization."
+      },
+      "extensions": {
+        "candidateId": "candidate-cae250aebafec495"
+      },
+      "findingId": "csf_a83bd9f89e2e5e5c2fc13c0e",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:c5d889149d92f1778fd047769ad94023e3f49d30901cda1c9778dcb595b8d02b"
+      },
+      "identity": {
+        "anchor": "deposit-compared-without-currency-units",
+        "instance": "lirunex-usc-usd"
+      },
+      "locations": [
+        {
+          "endLine": 67,
+          "path": "supabase/functions/_shared/lirunex-client.ts",
+          "role": "root_control",
+          "startLine": 63
+        },
+        {
+          "endLine": 483,
+          "path": "supabase/functions/claim-referral/index.ts",
+          "role": "entrypoint",
+          "startLine": 475
+        },
+        {
+          "endLine": 31,
+          "path": "lirunex-verify-bot/tests/fixtures/trading-accounts-1row.html",
+          "role": "source",
+          "startLine": 30
+        },
+        {
+          "endLine": 706,
+          "path": "supabase/functions/claim-referral/index.ts",
+          "role": "sink",
+          "startLine": 686
+        },
+        {
+          "endLine": 21,
+          "path": "supabase/migrations/058_lirunex_verification.sql",
+          "role": "evidence",
+          "startLine": 19
+        }
+      ],
+      "occurrenceId": "occ_06b662c8faf9a14b5cb5586f",
+      "preventiveControls": [
+        "Use currency-aware monetary value types.",
+        "Constrain configured deposit currencies to supported values."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Require the observed currency to match the configured currency and normalize supported units explicitly: USD values to cents and USC values as already-denominated US cents; reject missing or unsupported currencies.",
+      "remediationTests": [
+        "Reject a USC row when the gate expects USD.",
+        "Normalize USC 200.00 to 200 USD cents and reject a 10000-cent minimum.",
+        "Accept USD 200.00 for a 10000-cent minimum.",
+        "Reject unsupported or missing currency when a deposit gate is enabled."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "currency_root"
+        ],
+        "summary": "The monetary invariant requires a broker deposit to be normalized into the same minor unit as minDepositCents. The implementation applies a universal times-100 conversion and ignores both currency fields."
+      },
+      "ruleId": "authorization-bypass.deposit-currency",
+      "severity": {
+        "changeConditions": "Severity would rise if the bypass can be repeated at scale or keys are transferable; it would fall if live portal semantics prove USC values already represent USD amounts.",
+        "level": "medium",
+        "rationale": "A remote authenticated user with a genuine low-funded cent account under the referral can obtain a paid entitlement without secret compromise. The license remains bound to the selected account."
+      },
+      "summary": "The Edge gate receives both expected and observed currency but ignores them, multiplying USC values as if they were USD and allowing deposits below the intended threshold to qualify.",
+      "taxonomy": {
+        "category": "Authorization bypass / monetary unit confusion",
+        "cwe": [
+          "CWE-20"
+        ]
+      },
+      "title": "Cent-account deposits bypass the configured currency threshold",
+      "validation": {
+        "assertions": [
+          "Configured currency reaches the gate.",
+          "Observed currency reaches the row.",
+          "Neither affects the comparison.",
+          "The USC/USD mismatch returns valid."
+        ],
+        "disposition": "reportable",
+        "evidence": "USC 200.00 returned valid against a USD 10000-cent minimum.",
+        "evidenceRefs": [
+          "currency_root"
+        ],
+        "limitations": [
+          "No funded production account was queried."
+        ],
+        "method": "Targeted Deno decision probe plus fixture and migration trace"
+      }
+    },
+    {
+      "attackPath": {
+        "blindspots": [
+          "Production CPU and memory limits",
+          "Exact concurrent-browser failure threshold"
+        ],
+        "controls": [
+          "HMAC request authentication",
+          "Ten requests per minute per IP/user upstream",
+          "Browser cleanup in finally",
+          "Navigation timeouts"
+        ],
+        "dataflow": {
+          "evidenceRefs": [
+            "resource_root"
+          ],
+          "outcome": "Verification-service outage or restart",
+          "sink": "chromium.launch per request",
+          "source": "Concurrent authenticated claim requests",
+          "summary": "Authentication does not provide global resource admission.",
+          "transformations": [
+            "Upstream per-user/IP rate check",
+            "HMAC signing",
+            "Concurrent Express handlers"
+          ]
+        },
+        "impact": {
+          "level": "medium",
+          "rationale": "Availability of the only Lirunex verification path can be disrupted."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "A permitted authenticated burst creates the fan-out without another vulnerability."
+        },
+        "reachability": {
+          "attacker": "Remote authenticated SafetyScore users",
+          "entrypoint": "claim-referral Edge Function",
+          "evidenceRefs": [
+            "resource_root"
+          ],
+          "outcome": "Referral verification becomes unavailable",
+          "preconditions": [
+            "Active Lirunex program",
+            "Concurrent requests, potentially from multiple users or IPs"
+          ],
+          "summary": "HMAC prevents direct anonymous browser launches but upstream callers can still amplify globally."
+        },
+        "steps": [
+          "Send concurrent authenticated claims for an active Lirunex program.",
+          "Upstream rate checks permit the initial burst and sign each bot request.",
+          "Express runs the handlers concurrently.",
+          "Each handler launches and retains Chromium during portal waits.",
+          "CPU or memory pressure stalls or restarts verification."
+        ],
+        "summary": "Authenticated callers issue overlapping claims; the Edge Function signs each allowed request and the bot fans them out into concurrent browsers."
+      },
+      "codeEvidence": [
+        {
+          "code": "  try {\n    console.log('[POST /verify] Searching account:', account);\n    const rows = await searchAccount(cfg, account);",
+          "endLine": 27,
+          "explanation": "Every accepted request enters the expensive search immediately; no global permit is acquired first.",
+          "id": "resource_root",
+          "label": "Immediate browser-backed search",
+          "language": "javascript",
+          "path": "lirunex-verify-bot/src/server.js",
+          "role": "root_control",
+          "startLine": 25
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The full call chain and absence of a global guard are direct source facts; only the exact failure threshold remains unmeasured."
+      },
+      "extensions": {
+        "candidateId": "candidate-180d92072083b3ca"
+      },
+      "findingId": "csf_c6e7ab1274ed75d6dc321d97",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:4d39ac1e3a512047a16cf3e5a84943dd0954a8060cd082ee06fdb4aad13668b3"
+      },
+      "identity": {
+        "anchor": "unbounded-chromium-per-request",
+        "instance": "lirunex-verify-endpoint"
+      },
+      "locations": [
+        {
+          "endLine": 29,
+          "path": "lirunex-verify-bot/src/server.js",
+          "role": "root_control",
+          "startLine": 14
+        },
+        {
+          "endLine": 281,
+          "path": "supabase/functions/claim-referral/index.ts",
+          "role": "entrypoint",
+          "startLine": 274
+        },
+        {
+          "endLine": 98,
+          "path": "supabase/functions/_shared/lirunex-client.ts",
+          "role": "entrypoint/wrapper",
+          "startLine": 94
+        },
+        {
+          "endLine": 21,
+          "path": "lirunex-verify-bot/src/browser.js",
+          "role": "sink",
+          "startLine": 4
+        },
+        {
+          "endLine": 94,
+          "path": "lirunex-verify-bot/src/lirunexSearch.js",
+          "role": "concrete_implementation",
+          "startLine": 57
+        }
+      ],
+      "occurrenceId": "occ_c9caead5c63d0cc1b5b0f05d",
+      "preventiveControls": [
+        "Track active browser count and rejected busy requests.",
+        "Use a production load test sized to the deployment memory limit."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Add a process-wide admission gate that permits only a small bounded number of browser searches and returns a retryable 503 when all permits are occupied.",
+      "remediationTests": [
+        "Acquire the single permit and assert a concurrent acquisition is rejected.",
+        "Release the permit and assert the next acquisition succeeds.",
+        "Exercise POST /verify and assert busy responses do not invoke searchAccount."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "resource_root"
+        ],
+        "summary": "The service protects request authenticity but not resource admission. Express can execute all accepted handlers concurrently and each handler launches a new Chromium process."
+      },
+      "ruleId": "denial-of-service.browser-concurrency",
+      "severity": {
+        "changeConditions": "A production-equivalent load test showing graceful handling would lower severity; an observed OOM, restart loop, or portal lockout at ten concurrent requests would strengthen it.",
+        "level": "medium",
+        "rationale": "Remote authenticated users can cause many expensive browsers to overlap and disrupt referral verification. HMAC and per-user/IP rate limits reduce reachability but do not cap concurrent work across callers."
+      },
+      "summary": "Every HMAC-valid verification starts a separate Chromium process with no service-wide permit limit, while the documented deployment has only 1 GB RAM and upstream limits do not bound global concurrency.",
+      "taxonomy": {
+        "category": "Uncontrolled resource consumption",
+        "cwe": [
+          "CWE-400",
+          "CWE-770"
+        ]
+      },
+      "title": "Concurrent claims can fan out into unbounded Chromium processes",
+      "validation": {
+        "assertions": [
+          "Authenticated user requests reach the bot.",
+          "Permitted requests can overlap.",
+          "Each request launches Chromium.",
+          "No global cap or queue exists.",
+          "The documented deployment has 1 GB RAM and 1-2 vCPUs."
+        ],
+        "disposition": "reportable",
+        "evidence": "The route immediately calls searchAccount, whose first successful path launches a browser and includes at least 12.5 seconds of fixed waits.",
+        "evidenceRefs": [
+          "resource_root"
+        ],
+        "limitations": [
+          "No live OOM or production-equivalent load test was run."
+        ],
+        "method": "Complete static source-control-sink trace with deployment sizing evidence"
+      }
+    },
+    {
+      "attackPath": {
+        "blindspots": [
+          "Registry access policy",
+          "Production build source"
+        ],
+        "controls": [
+          ".env is Git-ignored",
+          "Railway Git builds normally omit ignored local files"
+        ],
+        "dataflow": {
+          "evidenceRefs": [
+            "image_sink"
+          ],
+          "outcome": "Broker and bot credential disclosure",
+          "sink": "Final image and layers",
+          "source": "Project-local .env",
+          "summary": "A local secret file becomes a deployable artifact.",
+          "transformations": [
+            "Docker build context",
+            "COPY into /app"
+          ]
+        },
+        "impact": {
+          "level": "high",
+          "rationale": "The copied file holds credentials and cryptographic secrets for separate protected systems."
+        },
+        "likelihood": {
+          "level": "unknown",
+          "rationale": "A local-context build and later artifact access are plausible but not proven as the production path."
+        },
+        "reachability": {
+          "attacker": "Image, layer, or container filesystem reader",
+          "entrypoint": "Local-context Docker build",
+          "evidenceRefs": [
+            "image_sink"
+          ],
+          "outcome": "Portal login, HMAC secret, and session key can be recovered",
+          "preconditions": [
+            "Configured checkout contains .env",
+            "Image or layer becomes readable"
+          ],
+          "summary": "The exact reader population is deployment-dependent, but the cross-boundary copy is definite."
+        },
+        "steps": [
+          "Create .env with portal, HMAC, and session secrets.",
+          "Build the Dockerfile from that local directory.",
+          "COPY . . stores .env in the final image.",
+          "Publish, share, cache, or inspect the image.",
+          "Use recovered credentials against the broker portal or bot."
+        ],
+        "summary": "An operator builds from a configured checkout; the image retains .env and a later image, layer, or container reader extracts cross-service credentials."
+      },
+      "codeEvidence": [
+        {
+          "code": "COPY . .",
+          "endLine": 5,
+          "explanation": "Without a Docker-specific exclusion, the normal local .env is copied into /app.",
+          "id": "image_sink",
+          "label": "Whole-context copy",
+          "language": "dockerfile",
+          "path": "lirunex-verify-bot/Dockerfile",
+          "role": "root_control",
+          "startLine": 5
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The source-to-image path is direct: a non-empty ignored .env exists, the runtime loads it, no Docker exclusion exists, and the Dockerfile copies the complete context."
+      },
+      "extensions": {
+        "candidateId": "candidate-ae71ca0fd90b79c7"
+      },
+      "findingId": "csf_0393898d1de2e5d5ed58f9aa",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:9d2d92f9c3d2333d0a1393017981c60055375c2c92e49f4a6d2b3e6fb89033e8"
+      },
+      "identity": {
+        "anchor": "whole-context-copy-without-dockerignore",
+        "instance": "lirunex-env"
+      },
+      "locations": [
+        {
+          "endLine": 5,
+          "path": "lirunex-verify-bot/Dockerfile",
+          "role": "root_control",
+          "startLine": 5
+        },
+        {
+          "endLine": 10,
+          "path": "lirunex-verify-bot/.env.example",
+          "role": "source",
+          "startLine": 3
+        },
+        {
+          "endLine": 3,
+          "path": "lirunex-verify-bot/.gitignore",
+          "role": "evidence",
+          "startLine": 1
+        },
+        {
+          "endLine": 5,
+          "path": "lirunex-verify-bot/railway.json",
+          "role": "entrypoint/wrapper",
+          "startLine": 3
+        },
+        {
+          "endLine": 23,
+          "path": "lirunex-verify-bot/src/config.js",
+          "role": "concrete_implementation",
+          "startLine": 5
+        }
+      ],
+      "occurrenceId": "occ_8ece42cb6b6ea1473c3a548c",
+      "preventiveControls": [
+        "Use runtime secret injection.",
+        "Scan built images for secret filenames before publishing."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Add a strict .dockerignore and replace COPY . . with allowlisted source copies so .env, .git, data, tests, and node_modules cannot enter the final image.",
+      "remediationTests": [
+        "Build a context containing a sentinel .env and assert it is absent from the image.",
+        "Inspect the final image file list for only required runtime files."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "image_sink"
+        ],
+        "summary": "The build assumes .gitignore constrains Docker, but Docker sends its own context. The final broad copy crosses secrets from local runtime configuration into an image artifact."
+      },
+      "ruleId": "secret-exposure.container-build-context",
+      "severity": {
+        "changeConditions": "Public or broadly shared registry evidence would raise severity; proof that all production builds are clean Git checkouts with no local context would lower it.",
+        "level": "medium",
+        "rationale": "If a configured local checkout is built and its image or layers are shared, readers can recover broker credentials, the HMAC secret, and the session key. Git-clone-only builds reduce likelihood but do not protect local-context builds."
+      },
+      "summary": "The service uses a project-local .env, but no .dockerignore exists and COPY . . stores the whole build context in the final image and its layers.",
+      "taxonomy": {
+        "category": "Secret exposure in container image",
+        "cwe": [
+          "CWE-200",
+          "CWE-538"
+        ]
+      },
+      "title": "A local secret-bearing .env can be baked into the production image",
+      "validation": {
+        "assertions": [
+          "The service expects a project-local .env.",
+          "The file contains secret categories defined by .env.example.",
+          "A non-empty ignored .env exists.",
+          "No .dockerignore exists.",
+          "The final stage copies the full context."
+        ],
+        "disposition": "reportable",
+        "evidence": "The .env exists with size 349 bytes and mode 0644; its contents were not read.",
+        "evidenceRefs": [
+          "image_sink"
+        ],
+        "limitations": [
+          "Registry visibility and Railway local-source upload behavior are not recorded."
+        ],
+        "method": "Static build-context trace plus metadata-only file checks"
+      }
+    },
+    {
+      "attackPath": {
+        "blindspots": [
+          "Log retention and exports",
+          "Log-reader population"
+        ],
+        "controls": [
+          "HMAC protects the bot request",
+          "Only the first row is logged"
+        ],
+        "dataflow": {
+          "evidenceRefs": [
+            "raw_log_sink"
+          ],
+          "outcome": "Contact and financial data copied into a wider system",
+          "sink": "Railway or PM2 logs",
+          "source": "Broker portal table row",
+          "summary": "Logging happens before field minimization.",
+          "transformations": [
+            "DOM cells",
+            "JSON serialization"
+          ]
+        },
+        "impact": {
+          "level": "low",
+          "rationale": "The exposed data is sensitive but the reader boundary is privileged or unknown."
+        },
+        "likelihood": {
+          "level": "medium",
+          "rationale": "Successful lookups are normal, while unauthorized log access is not established."
+        },
+        "reachability": {
+          "attacker": "Operator, log reader, or logging-platform attacker",
+          "entrypoint": "Successful account verification",
+          "evidenceRefs": [
+            "raw_log_sink"
+          ],
+          "outcome": "Exposure of broker customer and financial data",
+          "preconditions": [
+            "A matching row exists",
+            "Actor can read retained logs"
+          ],
+          "summary": "Public users can trigger the copy but cannot read logs from repository evidence."
+        },
+        "steps": [
+          "Trigger a successful signed account lookup.",
+          "Receive a portal row containing client and financial fields.",
+          "Serialize the complete row to service logs.",
+          "Read or export the retained logs."
+        ],
+        "summary": "A normal lookup copies the first broker row into logs; a log reader or logging-platform compromise obtains data outside the response contract."
+      },
+      "codeEvidence": [
+        {
+          "code": "  if (rowsCells.length > 0) {\n    console.log('[search] First row sample:', JSON.stringify(rowsCells[0]));\n  }",
+          "endLine": 152,
+          "explanation": "The raw cell array is logged before it is reduced to the fields needed for eligibility.",
+          "id": "raw_log_sink",
+          "label": "Full row log",
+          "language": "javascript",
+          "path": "lirunex-verify-bot/src/lirunexSearch.js",
+          "role": "root_control",
+          "startLine": 150
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The logger receives the entire cell array, and the fixture explicitly maps those cells to contact and financial data."
+      },
+      "extensions": {
+        "candidateId": "candidate-3339141d879784f5"
+      },
+      "findingId": "csf_0b66991e9895dbf1393e9f5e",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:fa973ee8fd81c566f1efc29275c58ba1c87a405aafe7f3036b825644a6aa0fd3"
+      },
+      "identity": {
+        "anchor": "broker-row-logged-before-projection",
+        "instance": "first-search-result"
+      },
+      "locations": [
+        {
+          "endLine": 152,
+          "path": "lirunex-verify-bot/src/lirunexSearch.js",
+          "role": "root_control",
+          "startLine": 150
+        },
+        {
+          "endLine": 148,
+          "path": "lirunex-verify-bot/src/lirunexSearch.js",
+          "role": "source",
+          "startLine": 146
+        },
+        {
+          "endLine": 37,
+          "path": "lirunex-verify-bot/tests/fixtures/trading-accounts-1row.html",
+          "role": "evidence",
+          "startLine": 23
+        }
+      ],
+      "occurrenceId": "occ_4e064227b80d9fc1f8a4b839",
+      "preventiveControls": [
+        "Project broker rows before logging.",
+        "Use structured logging with a field allowlist."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Remove the raw row sample log and retain only non-sensitive operational counts or masked identifiers.",
+      "remediationTests": [
+        "Exercise a successful search with a fixture containing contact data and assert logs do not contain any cell value."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "raw_log_sink"
+        ],
+        "summary": "Debug logging occurs before data minimization, crossing broker-only client and financial fields into a separate retained log system."
+      },
+      "ruleId": "sensitive-data-exposure.raw-row-logging",
+      "severity": {
+        "changeConditions": "Broad log-reader access, long retention, or external exports would increase severity; strict short-lived operator-only logs would reduce it.",
+        "level": "low",
+        "rationale": "The data exposure is definite but requires operator or logging-platform read access; public callers do not receive the log."
+      },
+      "summary": "A successful search serializes the first full portal row before projection, including client contact and financial columns not needed by the verification response.",
+      "taxonomy": {
+        "category": "Sensitive data in logs",
+        "cwe": [
+          "CWE-532"
+        ]
+      },
+      "title": "Raw broker contact and financial data is written to service logs",
+      "validation": {
+        "assertions": [
+          "The raw row contains contact and financial fields.",
+          "The complete row reaches console.log.",
+          "The response projection does not need those fields."
+        ],
+        "disposition": "reportable",
+        "evidence": "The full fixture-style cell array was passed to the logging sink.",
+        "evidenceRefs": [
+          "raw_log_sink"
+        ],
+        "limitations": [
+          "Production log retention and reader permissions are unknown."
+        ],
+        "method": "Mocked search sink probe plus fixture trace"
+      }
+    },
+    {
+      "attackPath": {
+        "blindspots": [
+          "Platform-specific console escaping"
+        ],
+        "controls": [
+          "Express default 100 KB JSON limit",
+          "HMAC rejects the request after logging"
+        ],
+        "dataflow": {
+          "evidenceRefs": [
+            "preauth_log_sink"
+          ],
+          "outcome": "Forged audit lines and log amplification",
+          "sink": "Service console logs",
+          "source": "Unauthenticated JSON account field",
+          "summary": "The authentication guard is misordered relative to the log sink.",
+          "transformations": [
+            "Express JSON parser"
+          ]
+        },
+        "impact": {
+          "level": "low",
+          "rationale": "The outcome is bounded log integrity and processing impact."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "The public path needs no authentication."
+        },
+        "reachability": {
+          "attacker": "Unauthenticated remote actor",
+          "entrypoint": "Public POST /verify",
+          "evidenceRefs": [
+            "preauth_log_sink"
+          ],
+          "outcome": "Audit-log integrity loss",
+          "preconditions": [
+            "Knowledge of the public bot URL"
+          ],
+          "summary": "No HMAC or SafetyScore account is required."
+        },
+        "steps": [
+          "Send a public POST /verify with a multiline account string and invalid signature.",
+          "Express parses the body.",
+          "console.log writes the attacker string.",
+          "HMAC verification rejects only after the forged line exists."
+        ],
+        "summary": "An unauthenticated remote actor posts JSON with multiline account text; the service writes it before rejecting the bad signature."
+      },
+      "codeEvidence": [
+        {
+          "code": "app.post('/verify', async (req, res) => {\n  console.log('[POST /verify] Incoming request from:', req.ip, 'account:', req.body?.account);\n  const sig = req.header('X-Signature') || '';\n  if (!verify(req.rawBody || '', sig, cfg.hmacSecret)) {\n    console.warn('[POST /verify] Bad signature rejected');",
+          "endLine": 18,
+          "explanation": "Attacker text reaches console.log before the HMAC check.",
+          "id": "preauth_log_sink",
+          "label": "Log before authentication",
+          "language": "javascript",
+          "path": "lirunex-verify-bot/src/server.js",
+          "role": "root_control",
+          "startLine": 14
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "Source order is direct and a bounded console probe showed a newline creates a forged second line."
+      },
+      "extensions": {
+        "candidateId": "candidate-3b13467bfeb0ee11"
+      },
+      "findingId": "csf_1fb581de96115df19458d023",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:e9cc48f6c13a981d501d21d6255296c22fac6bf4acd582c8ed24dbcb31430f98"
+      },
+      "identity": {
+        "anchor": "raw-account-logged-before-hmac",
+        "instance": "verify-request"
+      },
+      "locations": [
+        {
+          "endLine": 20,
+          "path": "lirunex-verify-bot/src/server.js",
+          "role": "root_control",
+          "startLine": 14
+        },
+        {
+          "endLine": 127,
+          "path": "lirunex-verify-bot/PROXMOX_LXC_GUIDE.md",
+          "role": "evidence",
+          "startLine": 94
+        }
+      ],
+      "occurrenceId": "occ_5ee68b88d15e2a49b04e2df7",
+      "preventiveControls": [
+        "Authenticate before observability sinks.",
+        "Use structured logging and escape control characters."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Verify HMAC and parse the numeric account before logging; log only a masked validated identifier with structured fields.",
+      "remediationTests": [
+        "Send invalid-HMAC multiline input and assert the raw account is never logged.",
+        "Send a valid request and assert only a masked numeric account is logged."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "preauth_log_sink"
+        ],
+        "summary": "Authentication and boundary parsing are ordered after a text log sink, so the logger consumes untrusted control characters."
+      },
+      "ruleId": "log-injection.preauth-account",
+      "severity": {
+        "changeConditions": "Security automation that trusts these logs for incident response or blocking would increase severity; structured logging that escapes controls would eliminate the path.",
+        "level": "low",
+        "rationale": "The issue is remotely reachable without authentication but affects audit integrity and bounded log volume rather than credentials or protected state."
+      },
+      "summary": "The public bot logs req.body.account before HMAC and format validation, so multiline JSON input can create forged log lines and repeatable log-processing amplification.",
+      "taxonomy": {
+        "category": "Log injection",
+        "cwe": [
+          "CWE-117"
+        ]
+      },
+      "title": "Unauthenticated account input can forge service log entries",
+      "validation": {
+        "assertions": [
+          "The endpoint is public.",
+          "JSON is parsed before HMAC.",
+          "The account value is logged before HMAC.",
+          "A newline creates a second apparent log entry."
+        ],
+        "disposition": "reportable",
+        "evidence": "A sample account containing a newline produced a forged second console line.",
+        "evidenceRefs": [
+          "preauth_log_sink"
+        ],
+        "limitations": [
+          "The deployed logging transport may add escaping not visible in console output."
+        ],
+        "method": "Static route-order trace plus bounded Node console probe"
+      }
+    }
+  ],
+  "scanId": "84446aa14057161a8a02fab3ab3947a3a19c4ede_20260820T123905Z",
+  "schemaVersion": "1.0"
+}
