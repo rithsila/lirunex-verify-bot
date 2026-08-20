@@ -15,6 +15,7 @@ const COL = {
   withdrawal: 9,
   nettDeposit: 10,
   balance: 11,
+  status: 14,
 };
 
 function extractAccount(cellText) {
@@ -34,7 +35,7 @@ function rowsFromCells(rowsCells) {
         country: (cells[COL.country] || '').trim(),
         currency: (cells[COL.currency] || '').trim(),
         depositRaw: (cells[COL.deposit] || '').trim(),
-        status: 'Active',
+        status: (cells[COL.status] || '').trim(),
       };
     })
     .filter((r) => r.account !== '');
@@ -147,10 +148,7 @@ async function executeSearch(page, cfg, account) {
     trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
   );
   console.log('[search] Total rows scraped inside #navs-incard3:', rowsCells.length);
-  if (rowsCells.length > 0) {
-    console.log('[search] First row sample:', JSON.stringify(rowsCells[0]));
-  }
   return rowsFromCells(rowsCells);
 }
 
-module.exports = { parseRows, rowsFromCells, extractAccount, COL, searchAccount };
+module.exports = { parseRows, rowsFromCells, extractAccount, COL, searchAccount, executeSearch };
