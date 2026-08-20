@@ -13,14 +13,11 @@ const COL = {
   status: 14,
 };
 
-// Extract the numeric account id from the "A/C Details" cell, whose text looks
-// like "569307908\nFlexGridPro-01". Take the first run of 6-12 digits.
 function extractAccount(cellText) {
   const m = String(cellText).match(/\d{6,12}/);
   return m ? m[0] : '';
 }
 
-// rowsCells: Array<Array<string>> — each inner array is one row's cell texts.
 function rowsFromCells(rowsCells) {
   return rowsCells
     .map((cells) => ({
@@ -35,13 +32,12 @@ function rowsFromCells(rowsCells) {
     .filter((r) => r.account !== '');
 }
 
-// parseRows: minimal HTML-string parser for tests/fallback. Splits <tr>/<td>.
 function parseRows(tableHtml) {
   const rowMatches = String(tableHtml).match(/<tr[\s\S]*?<\/tr>/gi) || [];
   const rowsCells = rowMatches
     .map((tr) => {
       const tds = tr.match(/<td[\s\S]*?<\/td>/gi);
-      if (!tds) return null; // header row (uses <th>)
+      if (!tds) return null;
       return tds.map((td) =>
         td.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
       );
@@ -50,40 +46,49 @@ function parseRows(tableHtml) {
   return rowsFromCells(rowsCells);
 }
 
-// Drives the portal and returns parsed rows.
 async function searchAccount(cfg, account) {
   let state = await loadStorageState(cfg.sessionKey);
   if (!state) {
+    console.log('[search] No saved session, logging in first...');
     await login(cfg);
     state = await loadStorageState(cfg.sessionKey);
   }
   const { browser, context } = await launchContext();
   try {
-    // Re-create context WITH the saved storage state.
     if (state?.cookies) {
       await context.addCookies(state.cookies);
     }
     const page = await context.newPage();
-    await page.goto(`${cfg.portalUrl}/partner/contacts`, { waitUntil: 'networkidle' });
+    const contactsUrl = `${cfg.portalUrl}/partner/contacts`;
+    console.log('[search] Navigating to:', contactsUrl);
+    await page.goto(contactsUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
 
-    // If redirected to login, session expired → re-login once and retry.
     if (/\/login/.test(page.url())) {
+      console.log('[search] Redirected to login, refreshing session...');
       await browser.close();
       await login(cfg);
-      return await searchAccount(cfg, account); // one retry
+      return await searchAccount(cfg, account);
     }
 
-    // Open the Trading Accounts tab.
-    await page.click('text=Trading Accounts');
-    // Type into the "Trading Account Id" search box.
-    await page.fill('input[placeholder="Trading Account Id"]', account);
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(2500); // let the table refresh
+    console.log('[search] Clicking Trading Accounts tab...');
+    const tabSelector = 'text="Trading Accounts", .el-tabs__item:has-text("Trading Accounts"), [role="tab"]:has-text("Trading Accounts")';
+    await page.waitForSelector(tabSelector, { timeout: 15000 });
+    await page.click(tabSelector);
+    await page.waitForTimeout(1500);
 
-    // Extract each data row's cell texts.
+    console.log('[search] Typing account into search input:', account);
+    const inputSelector = 'input[placeholder*="Trading Account Id" i], input[placeholder*="Account" i], input.el-input__inner';
+    await page.waitForSelector(inputSelector, { timeout: 15000 });
+    await page.fill(inputSelector, account);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(3000);
+
+    console.log('[search] Scraping table rows...');
     const rowsCells = await page.$$eval('table tbody tr', (trs) =>
       trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
     );
+    console.log('[search] Total scraped rows:', rowsCells.length);
     return rowsFromCells(rowsCells);
   } finally {
     await browser.close();
