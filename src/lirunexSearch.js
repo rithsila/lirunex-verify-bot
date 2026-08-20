@@ -55,12 +55,13 @@ async function searchAccount(cfg, account) {
   const { browser, context } = await launchContext(state);
   try {
     const page = await context.newPage();
-    console.log('[search] Navigating to Home first...');
-    await page.goto(`${cfg.portalUrl}/home?lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const partnerUrl = `${cfg.portalUrl}/partner/home?lang=en-us`;
+    console.log('[search] Navigating to Partner Portal:', partnerUrl);
+    await page.goto(partnerUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
 
     const currentUrl = page.url();
-    console.log('[search] Home URL:', currentUrl);
+    console.log('[search] Partner Portal URL:', currentUrl);
 
     if (currentUrl.includes('/auth/login')) {
       console.log('[search] Session expired, re-logging in...');
@@ -70,52 +71,40 @@ async function searchAccount(cfg, account) {
       const retry = await launchContext(newState);
       try {
         const retryPage = await retry.context.newPage();
-        return await executeSearch(retryPage, cfg, account);
+        await retryPage.goto(partnerUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await retryPage.waitForTimeout(3000);
+        return await executeSearch(retryPage, account);
       } finally {
         await retry.browser.close();
       }
     }
 
-    return await executeSearch(page, cfg, account);
+    return await executeSearch(page, account);
   } finally {
     await browser.close();
   }
 }
 
-async function executeSearch(page, cfg, account) {
-  // Try navigating or clicking sidebar menu
-  console.log('[search] Navigating to Partner Contacts...');
-  await page.goto(`${cfg.portalUrl}/partner/contacts?lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForTimeout(3000);
+async function executeSearch(page, account) {
+  console.log('[search] Clicking Trading Accounts tab using exact selector...');
+  const tabSelector = 'button[data-bs-target="#navs-incard3"], button:has-text("Trading Accounts")';
+  await page.waitForSelector(tabSelector, { timeout: 15000 });
+  await page.click(tabSelector);
+  await page.waitForTimeout(2000);
 
-  // Log visible text/links on page to diagnose
-  const pageText = await page.evaluate(() => document.body.innerText.slice(0, 500));
-  console.log('[search] Page snippet:', pageText.replace(/\n+/g, ' '));
-
-  // Check for Trading Accounts tab or sub-item
-  const tabSelector = 'text=/Trading Accounts/i, .el-tabs__item:has-text("Trading Accounts"), [role="tab"]:has-text("Trading Accounts"), a:has-text("Trading Accounts"), li:has-text("Trading Accounts")';
-  const foundTab = await page.$(tabSelector);
-  if (foundTab) {
-    console.log('[search] Clicking Trading Accounts tab...');
-    await foundTab.click();
-    await page.waitForTimeout(2000);
-  } else {
-    console.log('[search] Tab selector not found, checking if table is already present...');
-  }
-
-  console.log('[search] Typing account into search box:', account);
-  const inputSelector = 'input[placeholder*="Trading Account" i], input[placeholder*="Account" i], input.el-input__inner';
+  console.log('[search] Typing account into search input:', account);
+  const inputSelector = '#navs-incard3 input[type="search"], #navs-incard3 input[placeholder*="Search" i], #navs-incard3 input, input[placeholder*="Trading Account" i], input[type="search"]';
   const inputEl = await page.$(inputSelector);
   if (inputEl) {
     await inputEl.fill(account);
     await page.keyboard.press('Enter');
     await page.waitForTimeout(3000);
   } else {
-    console.warn('[search] Search input not found, reading table directly...');
+    console.warn('[search] Search box not found inside tab, reading table directly...');
   }
 
   console.log('[search] Scraping table rows...');
-  const rowsCells = await page.$$eval('table tbody tr', (trs) =>
+  const rowsCells = await page.$$eval('#navs-incard3 table tbody tr, table tbody tr', (trs) =>
     trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
   );
   console.log('[search] Total rows returned:', rowsCells.length);
