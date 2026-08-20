@@ -2,7 +2,6 @@
 const { launchContext } = require('./browser');
 const { loadStorageState, login } = require('./lirunexSession');
 
-// Column index map for the Trading Accounts table (0-based).
 const COL = {
   accountDetails: 0,
   accountType: 1,
@@ -53,46 +52,59 @@ async function searchAccount(cfg, account) {
     await login(cfg);
     state = await loadStorageState(cfg.sessionKey);
   }
-  const { browser, context } = await launchContext();
+  const { browser, context } = await launchContext(state);
   try {
-    if (state?.cookies) {
-      await context.addCookies(state.cookies);
-    }
     const page = await context.newPage();
     const contactsUrl = `${cfg.portalUrl}/partner/contacts`;
     console.log('[search] Navigating to:', contactsUrl);
     await page.goto(contactsUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
 
-    if (/\/login/.test(page.url())) {
+    const currentUrl = page.url();
+    console.log('[search] Current URL after navigation:', currentUrl);
+
+    if (currentUrl.includes('/auth/login')) {
       console.log('[search] Redirected to login, refreshing session...');
       await browser.close();
       await login(cfg);
-      return await searchAccount(cfg, account);
+      const newState = await loadStorageState(cfg.sessionKey);
+      const retry = await launchContext(newState);
+      try {
+        const retryPage = await retry.context.newPage();
+        await retryPage.goto(contactsUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await retryPage.waitForTimeout(3000);
+        return await executeSearch(retryPage, account);
+      } finally {
+        await retry.browser.close();
+      }
     }
 
-    console.log('[search] Clicking Trading Accounts tab...');
-    const tabSelector = 'text="Trading Accounts", .el-tabs__item:has-text("Trading Accounts"), [role="tab"]:has-text("Trading Accounts")';
-    await page.waitForSelector(tabSelector, { timeout: 15000 });
-    await page.click(tabSelector);
-    await page.waitForTimeout(1500);
-
-    console.log('[search] Typing account into search input:', account);
-    const inputSelector = 'input[placeholder*="Trading Account Id" i], input[placeholder*="Account" i], input.el-input__inner';
-    await page.waitForSelector(inputSelector, { timeout: 15000 });
-    await page.fill(inputSelector, account);
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(3000);
-
-    console.log('[search] Scraping table rows...');
-    const rowsCells = await page.$$eval('table tbody tr', (trs) =>
-      trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
-    );
-    console.log('[search] Total scraped rows:', rowsCells.length);
-    return rowsFromCells(rowsCells);
+    return await executeSearch(page, account);
   } finally {
     await browser.close();
   }
+}
+
+async function executeSearch(page, account) {
+  console.log('[search] Finding Trading Accounts tab...');
+  const tabSelector = 'text="Trading Accounts", .el-tabs__item:has-text("Trading Accounts"), [role="tab"]:has-text("Trading Accounts")';
+  await page.waitForSelector(tabSelector, { timeout: 15000 });
+  await page.click(tabSelector);
+  await page.waitForTimeout(2000);
+
+  console.log('[search] Typing account into search box:', account);
+  const inputSelector = 'input[placeholder*="Trading Account Id" i], input[placeholder*="Account" i], input.el-input__inner';
+  await page.waitForSelector(inputSelector, { timeout: 15000 });
+  await page.fill(inputSelector, account);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(3000);
+
+  console.log('[search] Scraping table rows...');
+  const rowsCells = await page.$$eval('table tbody tr', (trs) =>
+    trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
+  );
+  console.log('[search] Total rows returned:', rowsCells.length);
+  return rowsFromCells(rowsCells);
 }
 
 module.exports = { parseRows, rowsFromCells, extractAccount, COL, searchAccount };
