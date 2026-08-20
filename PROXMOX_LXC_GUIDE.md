@@ -57,16 +57,16 @@ Create the `.env` file:
 nano /opt/lirunex-verify-bot/.env
 ```
 
-Paste your secrets and credentials:
+Paste your configuration template and fill in your values:
 
 ```env
 PORT=3000
 LIRUNEX_PORTAL_URL=https://client.lirunex.online
-LIRUNEX_LOGIN_EMAIL=your-lirunex-email
-LIRUNEX_LOGIN_PASSWORD=your-lirunex-password
-LIRUNEX_REFERRER_NAME=Sila Rith
-SESSION_ENCRYPTION_KEY=2347081d524016a4299dcf8bda3d8060646de1f9060729ce91412f4cb98efe9d
-LIRUNEX_BOT_HMAC_SECRET=b3d44533bffdeb1e4b22e75af09bf42c998a7fc3af85292dec9b75f12d7d6a53
+LIRUNEX_LOGIN_EMAIL=<your-lirunex-login-email>
+LIRUNEX_LOGIN_PASSWORD=<your-lirunex-login-password>
+LIRUNEX_REFERRER_NAME=<your-expected-referrer-name>
+SESSION_ENCRYPTION_KEY=<your-64-hex-char-aes-key>
+LIRUNEX_BOT_HMAC_SECRET=<your-64-hex-char-hmac-secret>
 ```
 
 Press `Ctrl+O` then `Enter` to save, and `Ctrl+X` to exit nano.
@@ -83,9 +83,10 @@ pm2 save
 ```
 
 ### Health check:
+
 ```bash
 curl http://localhost:3000/health
-# Expected output: {"status":"ok","time":"..."}
+# Expected output: {"ok":true}
 ```
 
 ---
@@ -99,9 +100,14 @@ Supabase Edge Functions need a public HTTPS endpoint to talk to your LXC contain
 ```bash
 curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
 dpkg -i cloudflared.deb
-cloudflared tunnel --url http://localhost:3000
+pm2 start "cloudflared tunnel --url http://localhost:3000" --name cloudflare-tunnel
+pm2 save
 ```
-Copy the generated `https://<random-id>.trycloudflare.com` URL.
+
+Get the URL:
+```bash
+grep -o 'https://.*\.trycloudflare\.com' /root/.pm2/logs/cloudflare-tunnel-error.log | tail -n 1
+```
 
 ### Option B: Cloudflare Zero Trust Named Tunnel (Recommended for 24/7 Production)
 
