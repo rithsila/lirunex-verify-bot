@@ -132,12 +132,16 @@ async function executeSearch(page, cfg, account) {
   await page.keyboard.press('Enter');
   await page.waitForTimeout(3500);
 
-  // Step 6: Scrape table rows
-  console.log('[search] Scraping table rows...');
-  const rowsCells = await page.$$eval('table tbody tr', (trs) =>
+  // Step 6: Scrape table rows specifically from the active tab table
+  console.log('[search] Scraping table rows from #navs-incard3 table...');
+  const tableSelector = '#navs-incard3 div.card-datatable table tbody tr, #navs-incard3 table tbody tr, table tbody tr';
+  const rowsCells = await page.$$eval(tableSelector, (trs) =>
     trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
   );
   console.log('[search] Total rows scraped:', rowsCells.length);
+  if (rowsCells.length > 0) {
+    console.log('[search] First row sample:', JSON.stringify(rowsCells[0]));
+  }
   return rowsFromCells(rowsCells);
 }
 
