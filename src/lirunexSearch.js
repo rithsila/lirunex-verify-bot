@@ -105,23 +105,23 @@ async function executeSearch(page, cfg, account) {
   const tabEl = await page.$(tabSelector);
   if (tabEl) {
     await tabEl.click();
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000); // give tab pane time to fade in
   }
 
-  console.log('[search] Typing account into Trading Account Id box:', account);
-  const inputSelector = 'input.search-input[placeholder="Trading Account Id"], input[placeholder="Trading Account Id"]';
-  await page.waitForSelector(inputSelector, { timeout: 15000 });
-  await page.fill(inputSelector, account);
+  console.log('[search] Finding Trading Account Id input...');
+  const inputSelector = '#navs-incard3 input.search-input, #navs-incard3 input, input.search-input, input[placeholder*="Trading Account" i]';
+  const inputEl = await page.waitForSelector(inputSelector, { state: 'attached', timeout: 15000 });
+  await inputEl.fill(account);
   await page.keyboard.press('Enter');
 
-  const searchIcon = await page.$('.search-icon, i.bi-search');
+  const searchIcon = await page.$('#navs-incard3 .search-icon, .search-icon, i.bi-search');
   if (searchIcon) {
     await searchIcon.click();
   }
   await page.waitForTimeout(3000);
 
   console.log('[search] Scraping table rows...');
-  const rowsCells = await page.$$eval('table tbody tr', (trs) =>
+  const rowsCells = await page.$$eval('#navs-incard3 table tbody tr, table tbody tr', (trs) =>
     trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
   );
   console.log('[search] Total rows scraped:', rowsCells.length);
