@@ -2,19 +2,6 @@
 const { launchContext } = require('./browser');
 const { loadStorageState, login } = require('./lirunexSession');
 
-// Column index map for the Trading Accounts table matching your screenshot:
-// 0: A/C Details
-// 1: A/C Type
-// 2: A/C Leverage
-// 3: Client Details
-// 4: Client Contacts
-// 5: Referrer Name
-// 6: Country
-// 7: Currency
-// 8: Deposit
-// 9: Withdrawal
-// 10: Nett Deposit
-// 11: Balance
 const COL = {
   accountDetails: 0,
   accountType: 1,
@@ -22,7 +9,7 @@ const COL = {
   country: 6,
   currency: 7,
   deposit: 8,
-  status: 1, // Status default to Active if not present in columns
+  status: 1,
 };
 
 function extractAccount(cellText) {
@@ -68,13 +55,12 @@ async function searchAccount(cfg, account) {
   const { browser, context } = await launchContext(state);
   try {
     const page = await context.newPage();
-    const partnerUrl = `${cfg.portalUrl}/partner/home?lang=en-us`;
-    console.log('[search] Navigating to Partner Portal:', partnerUrl);
-    await page.goto(partnerUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    console.log('[search] Navigating to Home first...');
+    await page.goto(`${cfg.portalUrl}/home?lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
 
     const currentUrl = page.url();
-    console.log('[search] Partner Portal URL:', currentUrl);
+    console.log('[search] Home URL:', currentUrl);
 
     if (currentUrl.includes('/auth/login')) {
       console.log('[search] Session expired, re-logging in...');
@@ -84,21 +70,36 @@ async function searchAccount(cfg, account) {
       const retry = await launchContext(newState);
       try {
         const retryPage = await retry.context.newPage();
-        await retryPage.goto(partnerUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await retryPage.goto(`${cfg.portalUrl}/home?lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await retryPage.waitForTimeout(3000);
-        return await executeSearch(retryPage, account);
+        return await executeSearch(retryPage, cfg, account);
       } finally {
         await retry.browser.close();
       }
     }
 
-    return await executeSearch(page, account);
+    return await executeSearch(page, cfg, account);
   } finally {
     await browser.close();
   }
 }
 
-async function executeSearch(page, account) {
+async function executeSearch(page, cfg, account) {
+  console.log('[search] Clicking Partner Portal link from header...');
+  const partnerLinkSelector = 'a[href*="/partner/home?portal=PartnerPortal"], a:has-text("Partner Portal")';
+  const partnerLink = await page.$(partnerLinkSelector);
+  if (partnerLink) {
+    console.log('[search] Found Partner Portal link, clicking...');
+    await partnerLink.click();
+    await page.waitForTimeout(3000);
+  } else {
+    console.log('[search] Direct navigating to /partner/home?portal=PartnerPortal...');
+    await page.goto(`${cfg.portalUrl}/partner/home?portal=PartnerPortal&lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(3000);
+  }
+
+  console.log('[search] Current portal URL:', page.url());
+
   console.log('[search] Clicking Trading Accounts tab...');
   const tabSelector = 'button[data-bs-target="#navs-incard3"], button:has-text("Trading Accounts")';
   const tabEl = await page.$(tabSelector);
@@ -107,13 +108,12 @@ async function executeSearch(page, account) {
     await page.waitForTimeout(2000);
   }
 
-  console.log('[search] Finding Trading Account Id input...');
+  console.log('[search] Typing account into Trading Account Id box:', account);
   const inputSelector = 'input.search-input[placeholder="Trading Account Id"], input[placeholder="Trading Account Id"]';
   await page.waitForSelector(inputSelector, { timeout: 15000 });
   await page.fill(inputSelector, account);
   await page.keyboard.press('Enter');
 
-  // Also click the search magnifying icon if present
   const searchIcon = await page.$('.search-icon, i.bi-search');
   if (searchIcon) {
     await searchIcon.click();
@@ -124,7 +124,7 @@ async function executeSearch(page, account) {
   const rowsCells = await page.$$eval('table tbody tr', (trs) =>
     trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
   );
-  console.log('[search] Total rows returned:', rowsCells.length);
+  console.log('[search] Total rows scraped:', rowsCells.length);
   return rowsFromCells(rowsCells);
 }
 
