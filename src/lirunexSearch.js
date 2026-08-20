@@ -85,43 +85,56 @@ async function searchAccount(cfg, account) {
 }
 
 async function executeSearch(page, cfg, account) {
-  console.log('[search] Clicking Partner Portal link from header...');
+  // Step 1: Switch to Partner Portal if on Client Portal
   const partnerLinkSelector = 'a[href*="/partner/home?portal=PartnerPortal"], a:has-text("Partner Portal")';
   const partnerLink = await page.$(partnerLinkSelector);
   if (partnerLink) {
-    console.log('[search] Found Partner Portal link, clicking...');
+    console.log('[search] Switching to Partner Portal...');
     await partnerLink.click();
     await page.waitForTimeout(3000);
+  }
+
+  // Step 2: Click Contacts in sidebar menu
+  console.log('[search] Clicking Contacts menu in sidebar...');
+  const contactsSelector = 'a[href*="/partner/contacts"], a.side-menu__item:has-text("Contacts"), .side-menu__label:has-text("Contacts")';
+  const contactsEl = await page.$(contactsSelector);
+  if (contactsEl) {
+    await contactsEl.click();
+    await page.waitForTimeout(3000);
   } else {
-    console.log('[search] Direct navigating to /partner/home?portal=PartnerPortal...');
-    await page.goto(`${cfg.portalUrl}/partner/home?portal=PartnerPortal&lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    console.log('[search] Direct navigating to /partner/contacts?lang=en-us...');
+    await page.goto(`${cfg.portalUrl}/partner/contacts?lang=en-us`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(3000);
   }
 
-  console.log('[search] Current portal URL:', page.url());
+  console.log('[search] Current Contacts page URL:', page.url());
 
+  // Step 3: Click Trading Accounts tab
   console.log('[search] Clicking Trading Accounts tab...');
   const tabSelector = 'button[data-bs-target="#navs-incard3"], button:has-text("Trading Accounts")';
-  const tabEl = await page.$(tabSelector);
-  if (tabEl) {
-    await tabEl.click();
-    await page.waitForTimeout(3000); // give tab pane time to fade in
-  }
+  const tabEl = await page.waitForSelector(tabSelector, { state: 'attached', timeout: 15000 });
+  await tabEl.click();
+  await page.waitForTimeout(2500);
 
+  // Step 4: Type into Trading Account Id input
   console.log('[search] Finding Trading Account Id input...');
-  const inputSelector = '#navs-incard3 input.search-input, #navs-incard3 input, input.search-input, input[placeholder*="Trading Account" i]';
+  const inputSelector = 'input.search-input[placeholder="Trading Account Id"], input[placeholder="Trading Account Id"], input.search-input';
   const inputEl = await page.waitForSelector(inputSelector, { state: 'attached', timeout: 15000 });
   await inputEl.fill(account);
-  await page.keyboard.press('Enter');
 
-  const searchIcon = await page.$('#navs-incard3 .search-icon, .search-icon, i.bi-search');
+  // Step 5: Click the magnifying glass icon or press Enter
+  console.log('[search] Triggering search...');
+  const searchIconSelector = 'i.bi-search.searchable.search-icon, i.bi-search, .search-icon';
+  const searchIcon = await page.$(searchIconSelector);
   if (searchIcon) {
     await searchIcon.click();
   }
-  await page.waitForTimeout(3000);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(3500);
 
+  // Step 6: Scrape table rows
   console.log('[search] Scraping table rows...');
-  const rowsCells = await page.$$eval('#navs-incard3 table tbody tr, table tbody tr', (trs) =>
+  const rowsCells = await page.$$eval('table tbody tr', (trs) =>
     trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
   );
   console.log('[search] Total rows scraped:', rowsCells.length);
