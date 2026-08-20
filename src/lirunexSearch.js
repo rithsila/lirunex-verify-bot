@@ -5,11 +5,16 @@ const { loadStorageState, login } = require('./lirunexSession');
 const COL = {
   accountDetails: 0,
   accountType: 1,
+  leverage: 2,
+  clientDetails: 3,
+  clientContacts: 4,
   referrerName: 5,
   country: 6,
   currency: 7,
   deposit: 8,
-  status: 1,
+  withdrawal: 9,
+  nettDeposit: 10,
+  balance: 11,
 };
 
 function extractAccount(cellText) {
@@ -19,15 +24,19 @@ function extractAccount(cellText) {
 
 function rowsFromCells(rowsCells) {
   return rowsCells
-    .map((cells) => ({
-      account: extractAccount(cells[COL.accountDetails] || ''),
-      accountType: (cells[COL.accountType] || '').trim(),
-      referrerName: (cells[COL.referrerName] || '').trim(),
-      country: (cells[COL.country] || '').trim(),
-      currency: (cells[COL.currency] || '').trim(),
-      depositRaw: (cells[COL.deposit] || '').trim(),
-      status: 'Active',
-    }))
+    .map((cells) => {
+      // Check if this row is from the Trading Accounts table (where cell 0 has account + name, or cell 1 has type)
+      const acc = extractAccount(cells[COL.accountDetails] || '');
+      return {
+        account: acc,
+        accountType: (cells[COL.accountType] || '').trim(),
+        referrerName: (cells[COL.referrerName] || '').trim(),
+        country: (cells[COL.country] || '').trim(),
+        currency: (cells[COL.currency] || '').trim(),
+        depositRaw: (cells[COL.deposit] || '').trim(),
+        status: 'Active',
+      };
+    })
     .filter((r) => r.account !== '');
 }
 
@@ -118,27 +127,26 @@ async function executeSearch(page, cfg, account) {
 
   // Step 4: Type into Trading Account Id input
   console.log('[search] Finding Trading Account Id input...');
-  const inputSelector = 'input.search-input[placeholder="Trading Account Id"], input[placeholder="Trading Account Id"], input.search-input';
+  const inputSelector = '#navs-incard3 input.search-input, input.search-input[placeholder="Trading Account Id"], input[placeholder="Trading Account Id"]';
   const inputEl = await page.waitForSelector(inputSelector, { state: 'attached', timeout: 15000 });
   await inputEl.fill(account);
 
-  // Step 5: Click the magnifying glass icon or press Enter
+  // Step 5: Click the search icon
   console.log('[search] Triggering search...');
-  const searchIconSelector = 'i.bi-search.searchable.search-icon, i.bi-search, .search-icon';
+  const searchIconSelector = '#navs-incard3 i.bi-search.searchable.search-icon, #navs-incard3 .search-icon, i.bi-search.searchable.search-icon';
   const searchIcon = await page.$(searchIconSelector);
   if (searchIcon) {
     await searchIcon.click();
   }
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(4000);
 
-  // Step 6: Scrape table rows specifically from the active tab table
+  // Step 6: Scrape table rows specifically inside active tab #navs-incard3
   console.log('[search] Scraping table rows from #navs-incard3 table...');
-  const tableSelector = '#navs-incard3 div.card-datatable table tbody tr, #navs-incard3 table tbody tr, table tbody tr';
-  const rowsCells = await page.$$eval(tableSelector, (trs) =>
+  const rowsCells = await page.$$eval('#navs-incard3 table tbody tr', (trs) =>
     trs.map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.innerText.trim()))
   );
-  console.log('[search] Total rows scraped:', rowsCells.length);
+  console.log('[search] Total rows scraped inside #navs-incard3:', rowsCells.length);
   if (rowsCells.length > 0) {
     console.log('[search] First row sample:', JSON.stringify(rowsCells[0]));
   }
